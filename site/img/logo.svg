@@ -1,0 +1,15 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="xlada-bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1e2038"/>
+      <stop offset="1" stop-color="#0b0d1a"/>
+    </linearGradient>
+    <linearGradient id="xlada-mark" x1="9" y1="9" x2="23" y2="23" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8b6bf7"/>
+      <stop offset="1" stop-color="#2dd4c8"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#xlada-bg)"/>
+  <path d="M9.5 9.5 L22.5 22.5" stroke="url(#xlada-mark)" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+  <path d="M22.5 9.5 L9.5 22.5" stroke="url(#xlada-mark)" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+</svg>

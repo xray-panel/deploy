@@ -1,0 +1,94 @@
+# XLADA — развёртывание
+
+Файлы для запуска панели XLADA на сервере. Исходный код — в соседних
+репозиториях организации: [backend](https://github.com/xray-panel/backend),
+[frontend](https://github.com/xray-panel/frontend),
+[node](https://github.com/xray-panel/node),
+[subscription-page](https://github.com/xray-panel/subscription-page).
+
+Здесь только то, что нужно на сервере: compose-файлы, конфиги обратного
+прокси, образцы окружения и скрипт переезда.
+
+## Новая установка
+
+```bash
+git clone https://github.com/xray-panel/deploy.git /opt/xlada
+cd /opt/xlada
+
+# окружение
+cp panel.env.sample .env
+chmod 600 .env
+# заполните .env: APP_SECRET, POSTGRES_PASSWORD, METRICS_PASS, домены
+# APP_SECRET сгенерируйте: openssl rand -hex 32
+
+docker compose up -d
+```
+
+Панель поднимется на `127.0.0.1:3000`. Наружу её отдаёт nginx:
+
+```bash
+cp nginx/panel.conf /etc/nginx/sites-available/xlada-panel
+ln -sf /etc/nginx/sites-available/xlada-panel /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d panel.example.com
+```
+
+Первый вход: откройте панель и зарегистрируйте суперадмина. Пароль —
+минимум 24 символа, заглавные и строчные буквы, цифры.
+
+## Переезд с Remnawave с сохранением пользователей
+
+```bash
+cd /opt/remnawave          # каталог старой установки
+# положите рядом migrate-to-xlada.sh и docker-compose.migrate-from-remnawave.yml
+bash migrate-to-xlada.sh
+```
+
+Скрипт сохранит дамп базы и `.env` в `backups/<дата>/`, проверит, что
+дамп целый, остановит старый стек и поднимет XLADA на той же базе.
+Том с данными не затрагивается.
+
+Подробности и то, чего делать нельзя, — в
+[MIGRATE-FROM-REMNAWAVE.md](MIGRATE-FROM-REMNAWAVE.md).
+
+## Страница подписки (необязательно)
+
+Тот, что видит конечный пользователь. Нужен API-токен из панели:
+Настройки → API Tokens.
+
+```bash
+cp subpage.env.sample .env.subpage
+chmod 600 .env.subpage
+# укажите REMNAWAVE_PANEL_URL и REMNAWAVE_API_TOKEN
+
+docker compose up -d xpanel-subpage
+cp nginx/subpage.conf /etc/nginx/sites-available/xlada-subpage
+ln -sf /etc/nginx/sites-available/xlada-subpage /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d sub.example.com
+```
+
+## Обновление версии
+
+Версия задаётся переменной `XLADA_VERSION` в `.env` и совпадает у всех
+компонентов:
+
+```bash
+# в .env: XLADA_VERSION=1.2.0
+docker compose pull
+docker compose up -d
+```
+
+## Что важно не делать
+
+- **`docker compose down -v`** — флаг `-v` удаляет тома вместе с базой.
+- **Менять `APP_SECRET`** после первого запуска — от него зависят хеши
+  паролей и зашифрованные секреты, вход перестанет работать.
+- **Менять имена томов и сервисов** — при обновлении compose создаст
+  новые пустые тома, а данные останутся в старых.
+
+## Лицензия
+
+AGPL-3.0-only. XLADA — производная работа от
+[Remnawave](https://github.com/remnawave); атрибуция в файлах `NOTICE`
+соответствующих репозиториев.

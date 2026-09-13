@@ -1,0 +1,138 @@
+# XLADA — переезд с существующей установки Remnawave.
+#
+# Этот файл нужен, если у вас уже работает Remnawave со своей базой и вы
+# хотите перейти на XLADA, СОХРАНИВ пользователей (как их учётные записи в
+# панели, так и подписки).
+#
+# Отличие от deploy/docker-compose.yml: там разворачивается новая установка
+# с нуля, со своими именами томов и сервисов. Здесь же намеренно сохранены
+# имена и том СТАРОЙ установки, иначе новая база создастся пустой.
+#
+# Две ловушки, из-за которых пользователи могут пропасть:
+#
+#   1. ИМЯ ТОМА. В старой установке база лежит в томе remnawave-db-data.
+#      Если поднять XLADA со стандартным compose, создастся новый пустой
+#      том xpanel-db-data, и данных в нём не будет. Здесь используется
+#      именно remnawave-db-data.
+#
+#   2. ВЕРСИЯ POSTGRESQL. Каталог данных несовместим между мажорными
+#      версиями. У вас база создана postgres:17.6, поэтому здесь версия
+#      тоже 17.6 и каталог смонтирован туда же, где был
+#      (/var/lib/postgresql/data). Образ postgres 18 использует другой
+#      путь (/var/lib/postgresql/18/docker) и откажется читать данные 17.
+#      Переходить на 18 можно позже, отдельным шагом через pg_upgrade или
+#      dump/restore.
+#
+# Запуск:
+#   docker compose -f docker-compose.migrate-from-remnawave.yml up -d
+#
+# Перед запуском сделайте резервную копию базы и файла .env.
+
+x-common: &common
+  ulimits:
+    nofile:
+      soft: 1048576
+      hard: 1048576
+  restart: always
+  networks:
+    - remnawave-network
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: 5
+
+x-env: &env
+  env_file: .env
+
+services:
+  remnawave:
+    # Единственное содержательное изменение: образ панели заменён на XLADA.
+    image: ghcr.io/xray-panel/backend:${XLADA_VERSION:-1.1.1}
+    container_name: remnawave
+    hostname: remnawave
+    <<: [*common, *logging, *env]
+    ports:
+      - 127.0.0.1:3000:${APP_PORT:-3000}
+      - 127.0.0.1:3001:${METRICS_PORT:-3001}
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:${METRICS_PORT:-3001}/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      remnawave-db:
+        condition: service_healthy
+      remnawave-redis:
+        condition: service_healthy
+
+  remnawave-db:
+    # Версию НЕ поднимать: каталог данных создан этой мажорной версией.
+    image: postgres:17.6
+    container_name: remnawave-db
+    hostname: remnawave-db
+    <<: [*common, *logging, *env]
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - TZ=UTC
+    ports:
+      - 127.0.0.1:6767:5432
+    volumes:
+      # Том старой установки: в нём ваши пользователи.
+      - remnawave-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 3s
+      timeout: 10s
+      retries: 3
+
+  remnawave-redis:
+    image: valkey/valkey:8.1-alpine
+    container_name: remnawave-redis
+    hostname: remnawave-redis
+    <<: [*common, *logging]
+    # Кэш и очереди: данные не хранятся на диске, терять нечего.
+    command: >
+      valkey-server
+      --save ""
+      --appendonly no
+      --maxmemory-policy noeviction
+      --loglevel warning
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 3
+
+  # Страница подписки — необязательный сервис. Включайте, когда зададите
+  # REMNAWAVE_API_TOKEN в deploy/.env.subpage (токен создаётся в панели:
+  # Настройки → API Tokens).
+  #
+  # remnawave-subpage:
+  #   image: ghcr.io/xray-panel/subscription-page:${XLADA_VERSION:-1.1.1}
+  #   container_name: remnawave-subpage
+  #   restart: unless-stopped
+  #   env_file: .env.subpage
+  #   ports:
+  #     - 127.0.0.1:3010:3010
+  #   depends_on:
+  #     - remnawave
+  #   networks:
+  #     - remnawave-network
+
+networks:
+  remnawave-network:
+    name: remnawave-network
+    driver: bridge
+    external: false
+
+volumes:
+  remnawave-db-data:
+    name: remnawave-db-data
+    driver: local
+    external: false

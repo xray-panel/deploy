@@ -1,0 +1,78 @@
+services:
+  xpanel-db:
+    image: postgres:18.4
+    container_name: xpanel-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - TZ=UTC
+    volumes:
+      - xpanel-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [xpanel]
+
+  xpanel-redis:
+    image: valkey/valkey:9-alpine
+    container_name: xpanel-redis
+    restart: unless-stopped
+    command: >
+      valkey-server --save "" --appendonly no
+      --maxmemory-policy noeviction --loglevel warning
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [xpanel]
+
+  xpanel:
+    # Тег образа задаётся переменной XLADA_VERSION (deploy/.env); значение по
+    # умолчанию — версия из файла VERSION в корне репозитория. Подтянуть
+    # конкретную версию: scripts/pull-version.sh <версия>. Локальную сборку
+    # по-прежнему делают scripts/deploy-backend.sh / scripts/deploy-frontend.sh.
+    image: ghcr.io/xray-panel/backend:${XLADA_VERSION:-1.1.1}
+    container_name: xpanel
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - REDIS_HOST=xpanel-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    ports:
+      - 127.0.0.1:3000:3000
+    depends_on:
+      xpanel-db:
+        condition: service_healthy
+      xpanel-redis:
+        condition: service_healthy
+    networks: [xpanel]
+
+  xpanel-subpage:
+    # Страница подписки: отдельный сервис, отдаёт то, что видит конечный
+    # пользователь. Тег образа — тот же, что у панели (XLADA_VERSION).
+    # Собирается локально: scripts/deploy-subpage.sh
+    image: ghcr.io/xray-panel/subscription-page:${XLADA_VERSION:-1.1.1}
+    container_name: xpanel-subpage
+    restart: unless-stopped
+    env_file: .env.subpage
+    ports:
+      - 127.0.0.1:3010:3010
+    depends_on:
+      - xpanel
+    networks: [xpanel]
+
+networks:
+  xpanel:
+    name: xpanel-network
+    driver: bridge
+
+volumes:
+  xpanel-db-data:
+    name: xpanel-db-data

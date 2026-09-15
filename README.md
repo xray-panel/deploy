@@ -51,6 +51,23 @@ bash migrate-to-xlada.sh
 Подробности и то, чего делать нельзя, — в
 [MIGRATE-FROM-REMNAWAVE.md](MIGRATE-FROM-REMNAWAVE.md).
 
+## Переход на PostgreSQL 18
+
+XLADA работает на `postgres:18.4`, а старая установка Remnawave — на 17.6.
+Каталог данных между мажорными версиями несовместим: в образах 18+ он переехал
+в `/var/lib/postgresql/18/docker`, поэтому том, смонтированный в
+`/var/lib/postgresql`, с данными 17 не запустится:
+
+```
+Error: in 18+, these Docker images are configured to store database data in a
+       format which is compatible with "pg_ctlcluster" ...
+Counter to that, there appears to be PostgreSQL data in: /var/lib/postgresql
+```
+
+Переходить на 18 нужно отдельным шагом. Порядок, при котором старый том не
+изменяется вообще (откат — две строки в compose), описан в
+[PG18-UPGRADE.md](PG18-UPGRADE.md).
+
 ## Страница подписки (необязательно)
 
 Тот, что видит конечный пользователь. Нужен API-токен из панели:

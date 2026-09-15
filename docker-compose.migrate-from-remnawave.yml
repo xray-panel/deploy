@@ -20,8 +20,7 @@
 #      тоже 17.6 и каталог смонтирован туда же, где был
 #      (/var/lib/postgresql/data). Образ postgres 18 использует другой
 #      путь (/var/lib/postgresql/18/docker) и откажется читать данные 17.
-#      Переходить на 18 можно позже, отдельным шагом через pg_upgrade или
-#      dump/restore.
+#      Переходить на 18 можно позже, отдельным шагом: см. PG18-UPGRADE.md.
 #
 # Запуск:
 #   docker compose -f docker-compose.migrate-from-remnawave.yml up -d

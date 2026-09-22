@@ -37,7 +37,7 @@ services:
     # умолчанию — версия из файла VERSION в корне репозитория. Подтянуть
     # конкретную версию: scripts/pull-version.sh <версия>. Локальную сборку
     # по-прежнему делают scripts/deploy-backend.sh / scripts/deploy-frontend.sh.
-    image: ghcr.io/xray-panel/backend:${XLADA_VERSION:-1.1.4}
+    image: ghcr.io/xray-panel/backend:${XLADA_VERSION:-1.1.5}
     container_name: xpanel
     restart: unless-stopped
     env_file: .env
@@ -58,7 +58,7 @@ services:
     # Страница подписки: отдельный сервис, отдаёт то, что видит конечный
     # пользователь. Тег образа — тот же, что у панели (XLADA_VERSION).
     # Собирается локально: scripts/deploy-subpage.sh
-    image: ghcr.io/xray-panel/subscription-page:${XLADA_VERSION:-1.1.4}
+    image: ghcr.io/xray-panel/subscription-page:${XLADA_VERSION:-1.1.5}
     container_name: xpanel-subpage
     restart: unless-stopped
     env_file: .env.subpage

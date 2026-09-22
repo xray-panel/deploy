@@ -117,7 +117,9 @@ for r in backend node subscription-page; do
     git -C apps/$r push origin v1.2.0
 done
 
-# 4. обновить значение по умолчанию в compose-файлах этого репозитория
+# 4. обновить compose-файлы и MIGRATE-FROM-REMNAWAVE.md этого репозитория:
+#    версию по умолчанию в них подставляет set-version.sh в основном
+#    репозитории, поэтому файлы просто копируются оттуда и пушутся
 ```
 
 Тег `v*` запускает сборку: образы под amd64 и arm64 публикуются в GHCR, и

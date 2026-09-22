@@ -41,7 +41,7 @@
 
 ```ini
 # Тег образа XLADA, который подтягивается
-XLADA_VERSION=1.1.1
+XLADA_VERSION=1.1.3
 
 # Сколько дней хранить журнал действий администраторов
 AUDIT_LOG_RETENTION_DAYS=30
